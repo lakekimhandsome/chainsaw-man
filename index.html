@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chainsaw Pull</title>
+    <style>
+      body {
+        margin: 0;
+        background: rgb(255, 255, 255);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      #scene {
+        position: relative;
+        width: 300px;
+        touch-action: none;
+      }
+
+      #inner {
+        position: relative;
+      }
+
+      /* ✅ 두 이미지를 겹쳐 놓기 */
+      .char {
+        width: 100%;
+        display: block;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      #denji {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ✅ 체인소맨은 처음엔 숨김 + 변신 시에만 크게 */
+      #chainsawman {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 2;
+        opacity: 0;
+        transform: scale(1); /* 평소엔 의미 없음(숨김) */
+        transform-origin: 50% 45%; /* 중심은 가슴쯤(필요시 조정) */
+      }
+
+      /* ✅ 변신 후 체인소맨만 크게 + 보이기 */
+      #chainsawman.on {
+        opacity: 1;
+        transform: scale(1.35); /* 여기 숫자로 "변신 후 크기" 조절 */
+      }
+
+      /* ✅ 흔들림은 inner에만 */
+      #inner.shake {
+        animation: shake 0.3s linear infinite;
+      }
+
+      @keyframes shake {
+        0% {
+          transform: translate(0, 0);
+        }
+        25% {
+          transform: translate(-3px, 2px);
+        }
+        50% {
+          transform: translate(3px, -2px);
+        }
+        75% {
+          transform: translate(-2px, -3px);
+        }
+        100% {
+          transform: translate(0, 0);
+        }
+      }
+
+      #trigger {
+        position: absolute;
+        width: 48px;
+        height: 64px;
+        left: 130px;
+        top: 185px; /* ← 살짝 위로 */
+        background: url("assets/trigger.png") no-repeat center / contain;
+        cursor: grab;
+        transform: translateX(0);
+        transition: transform 0.1s ease-out;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scene">
+      <div id="inner">
+        <img id="denji" class="char" src="assets/denji.png" alt="Denji" />
+        <img
+          id="chainsawman"
+          class="char"
+          src="assets/chainsawman.png"
+          alt="Chainsaw Man"
+        />
+        <div id="trigger" aria-label="pull trigger"></div>
+      </div>
+    </div>
+
+    <audio id="sound" src="assets/kick_back.mp3" preload="auto"></audio>
+
+    <script>
+      const trigger = document.getElementById("trigger");
+      const sound = document.getElementById("sound");
+      const inner = document.getElementById("inner");
+      const chainsawman = document.getElementById("chainsawman");
+
+      let startX = null;
+      let activated = false;
+      let transformed = false;
+
+      sound.addEventListener("ended", resetToDenji);
+
+      trigger.addEventListener("pointerdown", (e) => {
+        if (transformed) return;
+        startX = e.clientX;
+        activated = false;
+        trigger.setPointerCapture(e.pointerId);
+      });
+
+      trigger.addEventListener("pointermove", (e) => {
+        if (startX === null || transformed) return;
+
+        const diff = startX - e.clientX; // 왼쪽 당기기(+)
+
+        if (diff > 0) {
+          trigger.style.transform = `translateX(${-Math.min(diff, 80)}px)`;
+        }
+
+        if (!activated && diff > 45) {
+          activated = true;
+          transformNow();
+        }
+      });
+
+      trigger.addEventListener("pointerup", resetTriggerIfNeeded);
+      trigger.addEventListener("pointercancel", resetTriggerIfNeeded);
+
+      function transformNow() {
+        transformed = true;
+
+        sound.currentTime = 0;
+        sound.play();
+
+        // ✅ 음악 켠 뒤 기다렸다가 흔들림 시작
+        setTimeout(() => {
+          inner.classList.add("shake");
+
+          // ✅ 변신 순간: 체인소맨만 "켜기" (이때부터 크게 보임)
+          setTimeout(() => {
+            chainsawman.classList.add("on");
+            trigger.style.display = "none";
+          }, 150);
+
+          // ✅ 흔들림 종료
+          setTimeout(() => {
+            inner.classList.remove("shake");
+          }, 700);
+        }, 400);
+      }
+
+      function resetTriggerIfNeeded() {
+        if (!transformed) {
+          startX = null;
+          trigger.style.transform = "translateX(0)";
+        }
+      }
+
+      function resetToDenji() {
+        transformed = false;
+        activated = false;
+        startX = null;
+
+        chainsawman.classList.remove("on"); // ✅ 체인소맨 숨김
+        trigger.style.display = "block";
+        trigger.style.transform = "translateX(0)";
+        inner.classList.remove("shake");
+
+        sound.currentTime = 0;
+      }
+    </script>
+  </body>
+</html>
