@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <title>Chainsaw Pull</title>
+    <title>LAKE CHAINSAW MAN</title>
     <style>
       body {
         margin: 0;
@@ -37,24 +37,21 @@
         z-index: 1;
       }
 
-      /* ✅ 체인소맨은 처음엔 숨김 + 변신 시에만 크게 */
       #chainsawman {
         position: absolute;
         left: 0;
-        top: 0;
+        top: -100px;
         z-index: 2;
         opacity: 0;
-        transform: scale(1); /* 평소엔 의미 없음(숨김) */
-        transform-origin: 50% 45%; /* 중심은 가슴쯤(필요시 조정) */
+        transform: scale(1);
+        transform-origin: 50% 100%;
       }
 
-      /* ✅ 변신 후 체인소맨만 크게 + 보이기 */
       #chainsawman.on {
         opacity: 1;
-        transform: scale(1.35); /* 여기 숫자로 "변신 후 크기" 조절 */
+        transform: scale(1.7);
       }
 
-      /* ✅ 흔들림은 inner에만 */
       #inner.shake {
         animation: shake 0.3s linear infinite;
       }
@@ -79,15 +76,17 @@
 
       #trigger {
         position: absolute;
-        width: 48px;
+        width: 400px;
         height: 64px;
-        left: 130px;
-        top: 185px; /* ← 살짝 위로 */
+        left: -130px;
+        top: 90px;
         background: url("assets/trigger.png") no-repeat center / contain;
         cursor: grab;
         transform: translateX(0);
         transition: transform 0.1s ease-out;
         touch-action: none;
+
+        z-index: 3; /* ✅ (1) 트리거를 가장 위로 */
       }
     </style>
   </head>
@@ -112,6 +111,7 @@
       const sound = document.getElementById("sound");
       const inner = document.getElementById("inner");
       const chainsawman = document.getElementById("chainsawman");
+      const denji = document.getElementById("denji"); // ✅ (2) 덴지 제어용 추가
 
       let startX = null;
       let activated = false;
@@ -150,17 +150,15 @@
         sound.currentTime = 0;
         sound.play();
 
-        // ✅ 음악 켠 뒤 기다렸다가 흔들림 시작
         setTimeout(() => {
           inner.classList.add("shake");
 
-          // ✅ 변신 순간: 체인소맨만 "켜기" (이때부터 크게 보임)
           setTimeout(() => {
-            chainsawman.classList.add("on");
+            denji.style.display = "none"; // ✅ (2) 변신 순간 덴지 숨김
+            chainsawman.classList.add("on"); // 체인소맨 표시(크게)
             trigger.style.display = "none";
           }, 150);
 
-          // ✅ 흔들림 종료
           setTimeout(() => {
             inner.classList.remove("shake");
           }, 700);
@@ -179,7 +177,9 @@
         activated = false;
         startX = null;
 
-        chainsawman.classList.remove("on"); // ✅ 체인소맨 숨김
+        chainsawman.classList.remove("on");
+        denji.style.display = "block"; // ✅ (2) 덴지 복구
+
         trigger.style.display = "block";
         trigger.style.transform = "translateX(0)";
         inner.classList.remove("shake");
