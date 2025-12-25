@@ -3,13 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>LAKE CHAINSAW MAN</title>
-    <!-- 기본 파비콘 -->
-    <link rel="icon" href="favicon.ico" />
 
+    <link rel="icon" href="favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-
-    <!-- 안드로이드 / PWA -->
     <link
       rel="icon"
       type="image/png"
@@ -22,9 +19,8 @@
       sizes="512x512"
       href="/android-chrome-512x512.png"
     />
-
-    <!-- iOS -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
     <style>
       body {
         margin: 0;
@@ -46,7 +42,6 @@
         position: relative;
       }
 
-      /* ✅ 두 이미지를 겹쳐 놓기 */
       .char {
         width: 100%;
         display: block;
@@ -107,11 +102,11 @@
         transform: translateX(0);
         transition: transform 0.1s ease-out;
         touch-action: none;
-
-        z-index: 3; /* ✅ (1) 트리거를 가장 위로 */
+        z-index: 3;
       }
     </style>
   </head>
+
   <body>
     <div id="scene">
       <div id="inner">
@@ -126,29 +121,62 @@
       </div>
     </div>
 
-    <audio id="sound" src="assets/kick_back.mp3" preload="auto"></audio>
+    <!-- ✅ iOS에서 playsinline이 도움 되는 케이스가 있음 -->
+    <audio
+      id="sound"
+      src="assets/kick_back.mp3"
+      preload="auto"
+      playsinline
+    ></audio>
 
     <script>
       const trigger = document.getElementById("trigger");
       const sound = document.getElementById("sound");
       const inner = document.getElementById("inner");
       const chainsawman = document.getElementById("chainsawman");
-      const denji = document.getElementById("denji"); // ✅ (2) 덴지 제어용 추가
+      const denji = document.getElementById("denji");
 
       let startX = null;
       let activated = false;
       let transformed = false;
 
+      // ✅ iOS 오디오 언락 플래그
+      let audioUnlocked = false;
+
       sound.addEventListener("ended", resetToDenji);
 
-      trigger.addEventListener("pointerdown", (e) => {
+      async function unlockAudioOnce() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+
+        // iOS: 첫 제스처에서 "무음 재생 -> 즉시 정지"로 권한 열기
+        const prevMuted = sound.muted;
+        sound.muted = true;
+        try {
+          sound.currentTime = 0;
+          await sound.play();
+          sound.pause();
+          sound.currentTime = 0;
+        } catch (e) {
+          // 언락이 실패해도 다음 제스처에서 다시 시도 가능하게 롤백
+          audioUnlocked = false;
+        } finally {
+          sound.muted = prevMuted;
+        }
+      }
+
+      trigger.addEventListener("pointerdown", async (e) => {
         if (transformed) return;
+
+        // ✅ 가장 중요: "터치 시작" 순간에 오디오 언락
+        await unlockAudioOnce();
+
         startX = e.clientX;
         activated = false;
         trigger.setPointerCapture(e.pointerId);
       });
 
-      trigger.addEventListener("pointermove", (e) => {
+      trigger.addEventListener("pointermove", async (e) => {
         if (startX === null || transformed) return;
 
         const diff = startX - e.clientX; // 왼쪽 당기기(+)
@@ -160,11 +188,17 @@
         if (!activated && diff > 45) {
           activated = true;
 
-          // ✅ iOS 대응: 제스처 안에서 즉시 재생
-          sound.currentTime = 0;
-          sound.play().catch(() => {});
+          // ✅ 실제 재생은 여기서 (이미 pointerdown에서 언락이 되어 있음)
+          try {
+            sound.muted = false;
+            sound.currentTime = 0;
+            await sound.play();
+          } catch (e2) {
+            // 그래도 막히면: 다음 제스처에서 언락 다시 시도하게
+            audioUnlocked = false;
+          }
 
-          transformNow(); // 연출은 따로
+          transformNow();
         }
       });
 
@@ -178,8 +212,8 @@
           inner.classList.add("shake");
 
           setTimeout(() => {
-            denji.style.display = "none"; // ✅ (2) 변신 순간 덴지 숨김
-            chainsawman.classList.add("on"); // 체인소맨 표시(크게)
+            denji.style.display = "none";
+            chainsawman.classList.add("on");
             trigger.style.display = "none";
           }, 150);
 
@@ -202,12 +236,13 @@
         startX = null;
 
         chainsawman.classList.remove("on");
-        denji.style.display = "block"; // ✅ (2) 덴지 복구
+        denji.style.display = "block";
 
         trigger.style.display = "block";
         trigger.style.transform = "translateX(0)";
         inner.classList.remove("shake");
 
+        sound.pause();
         sound.currentTime = 0;
       }
     </script>
